@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amplitude · Analytics para Banca Digital</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --amp-blue: #1b6dff;
+    --amp-purple: #7b5af9;
+    --amp-green: #00c896;
+    --amp-gold: #f5a623;
+    --amp-red: #ff4d6d;
+    --gray-900: #07080f;
+    --gray-800: #0e0f1c;
+    --gray-700: #161728;
+    --gray-600: #1f2035;
+    --gray-300: #7a7a99;
+    --gray-100: #dcdcf0;
+  }
+  html, body { width:100%; height:100%; background:var(--gray-900); font-family:'Inter',sans-serif; overflow:hidden; color:white; }
+
+  .deck { width:100%; height:100%; position:relative; }
+  .slide {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    justify-content:center; align-items:center; padding:48px 80px;
+    opacity:0; transform:translateX(70px);
+    transition:opacity 0.45s cubic-bezier(.4,0,.2,1), transform 0.45s cubic-bezier(.4,0,.2,1);
+    pointer-events:none; overflow:hidden;
+  }
+  .slide.active { opacity:1; transform:translateX(0); pointer-events:all; }
+  .slide.exit   { opacity:0; transform:translateX(-70px); }
+
+  .bg-dots { background-image:radial-gradient(circle,rgba(255,255,255,0.035) 1px,transparent 1px); background-size:28px 28px; }
+  .bg-grid {
+    background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);
+    background-size:48px 48px;
+  }
+  .glow { position:absolute; border-radius:50%; filter:blur(90px); pointer-events:none; z-index:0; }
+
+  .content { position:relative; z-index:1; width:100%; max-width:1200px; }
+
+  .tag {
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(27,109,255,0.12); border:1px solid rgba(27,109,255,0.28);
+    color:#7baeff; font-size:10.5px; font-weight:700; letter-spacing:2px;
+    text-transform:uppercase; padding:5px 14px; border-radius:100px; margin-bottom:20px;
+  }
+  h1 { font-size:clamp(2.2rem,4.5vw,4rem); font-weight:900; line-height:1.1; letter-spacing:-1.5px; margin-bottom:20px; }
+  h2 { font-size:clamp(1.7rem,3vw,2.6rem); font-weight:800; line-height:1.15; letter-spacing:-0.5px; margin-bottom:16px; }
+  .subtitle { font-size:clamp(.9rem,1.6vw,1.15rem); color:var(--gray-300); font-weight:400; line-height:1.7; max-width:660px; }
+
+  .gt { background:linear-gradient(130deg,#fff 25%,var(--amp-blue) 65%,var(--amp-purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .gt-green { background:linear-gradient(130deg,#fff 20%,var(--amp-green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .gt-gold  { background:linear-gradient(130deg,#fff 20%,var(--amp-gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+  /* CARDS */
+  .grid { display:grid; gap:14px; margin-top:24px; }
+  .g3 { grid-template-columns:repeat(3,1fr); }
+  .g2 { grid-template-columns:repeat(2,1fr); }
+  .g21 { grid-template-columns:2fr 1fr; }
+  .card {
+    background:rgba(255,255,255,0.038); border:1px solid rgba(255,255,255,0.08);
+    border-radius:18px; padding:24px; position:relative; overflow:hidden;
+    transition:border-color .3s, background .3s;
+  }
+  .card:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.15); }
+  .card-icon { font-size:26px; margin-bottom:12px; display:block; }
+  .card h3 { font-size:.95rem; font-weight:700; margin-bottom:7px; }
+  .card p { font-size:.82rem; color:var(--gray-300); line-height:1.65; }
+
+  .badge {
+    position:absolute; top:14px; right:14px;
+    font-size:9.5px; font-weight:700; letter-spacing:1px;
+    padding:3px 9px; border-radius:100px; text-transform:uppercase;
+    background:rgba(255,255,255,0.07); color:var(--gray-300); border:1px solid rgba(255,255,255,0.1);
+  }
+  .bb,.bg2,.bp,.br,.bg3 { background:rgba(255,255,255,0.07); color:var(--gray-300); border:1px solid rgba(255,255,255,0.1); }
+
+  /* COMPARE TABLE */
+  .cmp { width:100%; border-collapse:collapse; margin-top:20px; font-size:.85rem; }
+  .cmp th { padding:9px 16px; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--gray-300); border-bottom:1px solid rgba(255,255,255,0.07); text-align:left; }
+  .cmp td { padding:13px 16px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+  .cmp tr:last-child td { border-bottom:none; }
+  .cmp tr:hover td { background:rgba(255,255,255,0.015); }
+  .cmp .ga { color:#ff8fa3; }
+  .cmp .am { color:#5fffd9; font-weight:600; }
+  .cmp .feat { color:var(--gray-100); font-weight:500; }
+  .th-ga { background:rgba(255,77,109,0.08)!important; color:#ff8fa3!important; }
+  .th-am { background:rgba(27,109,255,0.12)!important; color:#7baeff!important; }
+
+  /* CHANNEL VIZ */
+  .channels { display:flex; gap:12px; margin-top:24px; align-items:stretch; }
+  .ch {
+    flex:1; padding:20px 16px; border-radius:16px; text-align:center;
+    border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    position:relative;
+  }
+  .ch-icon { font-size:28px; }
+  .ch-name { font-size:.78rem; font-weight:700; color:var(--gray-100); }
+  .ch-sub { font-size:.7rem; color:var(--gray-300); }
+  .ch-bar { width:100%; height:6px; border-radius:3px; background:rgba(255,255,255,0.08); }
+  .ch-fill { height:100%; border-radius:3px; }
+  .ch-pct { font-size:1rem; font-weight:800; }
+  .ch-tag {
+    position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    font-size:8.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    padding:3px 10px; border-radius:100px; white-space:nowrap;
+  }
+
+  /* STAT ROW */
+  .stats { display:flex; gap:40px; margin-top:36px; }
+  .stat { }
+  .stat-n { font-size:2.6rem; font-weight:900; letter-spacing:-2px; line-height:1; }
+  .stat-l { font-size:.72rem; color:var(--gray-300); margin-top:4px; font-weight:600; text-transform:uppercase; letter-spacing:1.2px; }
+
+  /* PILLS */
+  .pill { display:inline-block; padding:4px 11px; border-radius:100px; font-size:.72rem; font-weight:600; margin:3px; background:rgba(255,255,255,0.07); color:var(--gray-100); border:1px solid rgba(255,255,255,0.1); }
+  .pb,.pp,.pg,.po { background:rgba(27,109,255,0.12); color:#7baeff; border:1px solid rgba(27,109,255,0.22); }
+
+  /* JOURNEY VIZ */
+  .jrn { display:flex; align-items:center; gap:0; margin-top:14px; }
+  .jn { display:flex; flex-direction:column; align-items:center; gap:6px; flex-shrink:0; }
+  .jb {
+    width:50px; height:50px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; font-size:18px;
+    border:1.5px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05);
+  }
+  .jb.ok { background:rgba(0,200,150,0.2); border-color:var(--amp-green); }
+  .jb.warn { background:rgba(245,166,35,0.2); border-color:var(--amp-gold); }
+  .jb.bad { background:rgba(255,77,109,0.2); border-color:var(--amp-red); }
+  .jl { font-size:.65rem; color:var(--gray-300); text-align:center; max-width:60px; line-height:1.3; }
+  .jch { font-size:.7rem; font-weight:700; }
+  .ja { flex:1; height:2px; min-width:16px; background:linear-gradient(90deg,rgba(27,109,255,0.5),rgba(255,255,255,0.06)); }
+
+  /* ROI TABLE */
+  .rtbl { width:100%; border-collapse:collapse; margin-top:18px; }
+  .rtbl th { text-align:left; padding:9px 14px; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--gray-300); border-bottom:1px solid rgba(255,255,255,0.07); }
+  .rtbl td { padding:12px 14px; font-size:.85rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .rtbl tr:hover td { background:rgba(255,255,255,0.02); }
+  .imp-h { color:var(--amp-green); font-weight:800; }
+  .imp-m { color:#7baeff; font-weight:800; }
+  .imp-c { color:var(--amp-gold); font-weight:800; }
+
+  /* SPLIT */
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:44px; align-items:start; }
+
+  /* LOGO */
+  .amp-logo { display:flex; align-items:center; gap:8px; margin-bottom:28px; }
+  .amp-logo-icon { width:36px; height:36px; border-radius:9px; background:linear-gradient(135deg,var(--amp-blue),var(--amp-purple)); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; }
+  .amp-logo-text { font-size:.95rem; font-weight:800; }
+
+  /* DIVIDER */
+  .hr { width:100%; height:1px; background:rgba(255,255,255,0.06); margin:20px 0; }
+
+  /* NAV */
+  .nav {
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:18px;
+    background:rgba(255,255,255,0.05); backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,0.1); border-radius:100px; padding:10px 22px;
+    z-index:100;
+  }
+  .nb { width:34px; height:34px; border-radius:50%; border:none; cursor:pointer; background:rgba(255,255,255,0.09); color:white; font-size:15px; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+  .nb:hover { background:rgba(255,255,255,0.18); }
+  .dots { display:flex; gap:7px; }
+  .dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.18); cursor:pointer; transition:all .3s; }
+  .dot.active { background:var(--amp-blue); width:22px; border-radius:4px; }
+  .sc { font-size:.72rem; color:var(--gray-300); font-weight:700; min-width:36px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ══════════════════════════════════
+  SLIDE 1 — INTRO / PROPUESTA DE VALOR
+══════════════════════════════════ -->
+<section class="slide bg-dots active" id="s0">
+  <div class="glow" style="width:560px;height:560px;background:rgba(27,109,255,0.05);top:-180px;left:-80px;"></div>
+  <div class="glow" style="width:380px;height:380px;background:rgba(27,109,255,0.04);bottom:-100px;right:-60px;"></div>
+  <div class="content" style="text-align:center;display:flex;flex-direction:column;align-items:center;">
+    <div class="amp-logo" style="justify-content:center;">
+      <div class="amp-logo-icon">A</div>
+      <span class="amp-logo-text">Amplitude · Banca Digital</span>
+    </div>
+    <div class="tag">💡 Propuesta de Valor</div>
+    <h1 class="gt" style="max-width:860px;">Entiende el comportamiento<br>completo de tus clientes digitales.</h1>
+    <p class="subtitle" style="text-align:center;">
+      Tu cliente descubre tu banco en la web, abre su cuenta en la app, hace transferencias, consulta saldos y contacta soporte.<br><strong style="color:white;">Amplitude conecta todo ese journey en un solo perfil — en tiempo real.</strong>
+    </p>
+    <div class="channels" style="margin-top:40px;max-width:860px;width:100%;">
+      <div class="ch" style="border-color:rgba(27,109,255,0.22);">
+        <div class="ch-tag" style="background:rgba(27,109,255,0.15);color:#7baeff;border:1px solid rgba(27,109,255,0.25);">✓ Amplitude</div>
+        <div class="ch-icon">📱</div>
+        <div class="ch-name">App Móvil</div>
+        <div class="ch-sub">Onboarding · Transacciones</div>
+        <div class="ch-bar"><div class="ch-fill" style="width:100%;background:var(--amp-blue);"></div></div>
+      </div>
+      <div class="ch" style="border-color:rgba(27,109,255,0.22);">
+        <div class="ch-tag" style="background:rgba(27,109,255,0.15);color:#7baeff;border:1px solid rgba(27,109,255,0.25);">✓ Amplitude</div>
+        <div class="ch-icon">🌐</div>
+        <div class="ch-name">Portal Web</div>
+        <div class="ch-sub">Banca en línea</div>
+        <div class="ch-bar"><div class="ch-fill" style="width:100%;background:var(--amp-blue);"></div></div>
+      </div>
+      <div class="ch" style="border-color:rgba(27,109,255,0.22);">
+        <div class="ch-tag" style="background:rgba(27,109,255,0.15);color:#7baeff;border:1px solid rgba(27,109,255,0.25);">✓ Amplitude</div>
+        <div class="ch-icon">📣</div>
+        <div class="ch-name">Campañas & Surveys</div>
+        <div class="ch-sub">Web · In-App · NPS</div>
+        <div class="ch-bar"><div class="ch-fill" style="width:100%;background:var(--amp-blue);"></div></div>
+      </div>
+      <div class="ch" style="border-color:rgba(27,109,255,0.22);">
+        <div class="ch-tag" style="background:rgba(27,109,255,0.15);color:#7baeff;border:1px solid rgba(27,109,255,0.25);">✓ Amplitude</div>
+        <div class="ch-icon">🔔</div>
+        <div class="ch-name">Email & Push</div>
+        <div class="ch-sub">Notificaciones · Campañas</div>
+        <div class="ch-bar"><div class="ch-fill" style="width:100%;background:var(--amp-blue);"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 2 — QUÉ ES AMPLITUDE
+══════════════════════════════════ -->
+<section class="slide bg-grid" id="s1">
+  <div class="glow" style="width:480px;height:480px;background:rgba(27,109,255,0.04);top:-120px;right:-80px;"></div>
+  <div class="content">
+    <div class="tag">🧩 La Plataforma</div>
+    <h2>Amplitude es una plataforma de <span class="gt">product analytics</span> end-to-end</h2>
+    <p class="subtitle" style="font-size:.9rem;margin-bottom:0;">Cuatro capacidades integradas que trabajan juntas para que tu banco entienda, optimice y experimente con el comportamiento digital de sus clientes.</p>
+    <div class="grid g2" style="margin-top:20px;gap:14px;">
+      <div style="padding:22px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📊</div>
+          <div><p style="font-size:.95rem;font-weight:800;color:var(--gray-100);">Analytics</p><p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:.8px;">Comportamiento de usuarios</p></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--gray-300);line-height:1.65;">Funnels, retención, cohortes, journeys y métricas de negocio. Responde preguntas complejas de producto en minutos — sin SQL, sin esperar al equipo de datos.</p>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill">Funnels</span><span class="pill">Retención</span><span class="pill">Cohorts</span><span class="pill">Journeys</span>
+        </div>
+      </div>
+      <div style="padding:22px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧪</div>
+          <div><p style="font-size:.95rem;font-weight:800;color:var(--gray-100);">Experiment</p><p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:.8px;">A/B Testing con rigor estadístico</p></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--gray-300);line-height:1.65;">Lanza feature flags y experimentos con significancia estadística real. Valida cada cambio en la app antes de hacer rollout al 100% de tus clientes.</p>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill">Feature Flags</span><span class="pill">A/B Testing</span><span class="pill">Rollouts</span>
+        </div>
+      </div>
+      <div style="padding:22px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎥</div>
+          <div><p style="font-size:.95rem;font-weight:800;color:var(--gray-100);">Session Replay</p><p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:.8px;">Grabaciones enlazadas a métricas</p></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--gray-300);line-height:1.65;">Ve exactamente qué hizo un cliente antes de abandonar una transferencia o el onboarding. Cada replay está vinculado a su funnel y cohorte — contexto completo al instante.</p>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill">Grabación de sesión</span><span class="pill">Heatmaps</span><span class="pill">Rage clicks</span>
+        </div>
+      </div>
+      <div style="padding:22px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:18px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎯</div>
+          <div><p style="font-size:.95rem;font-weight:800;color:var(--gray-100);">Audiences</p><p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:.8px;">Audiencias accionables</p></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--gray-300);line-height:1.65;">Construye segmentos de clientes basados en comportamiento real y sincronízalos en tiempo real a tu CRM o herramienta de marketing. Del insight a la campaña sin fricción.</p>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill">Segmentos</span><span class="pill">Sync CRM</span><span class="pill">Predicción churn</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 3 — PERFIL UNIFICADO CROSS-CANAL
+══════════════════════════════════ -->
+<section class="slide bg-dots" id="s2">
+  <div class="glow" style="width:460px;height:460px;background:rgba(27,109,255,0.04);bottom:-100px;left:-80px;"></div>
+  <div class="content split">
+    <div>
+      <div class="tag">🔗 Cross-Channel Identity</div>
+      <h2>Un cliente.<br><span class="gt-green">Una sola historia.</span></h2>
+      <p class="subtitle" style="font-size:.9rem;">Amplitude construye automáticamente un perfil unificado cuando el mismo usuario toca múltiples canales — incluso antes de autenticarse.</p>
+      <div class="hr"></div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:13px;margin-top:4px;">
+        <li style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:22px;height:22px;border-radius:50%;background:rgba(0,200,150,0.15);border:1px solid var(--amp-green);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--amp-green);flex-shrink:0;margin-top:2px;">✓</div>
+          <span style="font-size:.9rem;line-height:1.5;"><strong>Device Graph:</strong> conecta el anonymous ID (visita web) con el user ID (app) en el mismo perfil tras el login.</span>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:22px;height:22px;border-radius:50%;background:rgba(0,200,150,0.15);border:1px solid var(--amp-green);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--amp-green);flex-shrink:0;margin-top:2px;">✓</div>
+          <span style="font-size:.9rem;line-height:1.5;"><strong>ID Merging:</strong> si el cliente descubre el banco en la landing web y luego completa su onboarding en la app, Amplitude fusiona esa historia automáticamente.</span>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:22px;height:22px;border-radius:50%;background:rgba(0,200,150,0.15);border:1px solid var(--amp-green);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--amp-green);flex-shrink:0;margin-top:2px;">✓</div>
+          <span style="font-size:.9rem;line-height:1.5;"><strong>Funnels cross-canal:</strong> "Vio un banner en web → descargó la app → completó su primera transferencia". Todo en un solo funnel medible.</span>
+        </li>
+        <li style="display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:22px;height:22px;border-radius:50%;background:rgba(0,200,150,0.15);border:1px solid var(--amp-green);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--amp-green);flex-shrink:0;margin-top:2px;">✓</div>
+          <span style="font-size:.9rem;line-height:1.5;"><strong>PII masking nativo:</strong> datos sensibles enmascarados en origen — cumplimiento regulatorio de serie.</span>
+        </li>
+      </ul>
+    </div>
+    <div>
+      <p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:12px;">Journey real de un cliente bancario</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(27,109,255,0.2);border-radius:12px;">
+          <span style="font-size:20px;">🌐</span>
+          <div>
+            <p style="font-size:.8rem;font-weight:700;color:#7baeff;">Landing Web — Lunes 9:12 am</p>
+            <p style="font-size:.75rem;color:var(--gray-300);">Busca "abrir cuenta de ahorros" → entra a la landing → ve el CTA de descarga</p>
+          </div>
+          <span style="margin-left:auto;font-size:.7rem;padding:3px 9px;background:rgba(27,109,255,0.15);border-radius:100px;color:#7baeff;white-space:nowrap;">Amplitude ✓</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(123,90,249,0.2);border-radius:12px;">
+          <span style="font-size:20px;">📲</span>
+          <div>
+            <p style="font-size:.8rem;font-weight:700;color:#c4b2ff;">App — Lunes 9:31 am</p>
+            <p style="font-size:.75rem;color:var(--gray-300);">Descarga la app → inicia registro → KYC completado</p>
+          </div>
+          <span style="margin-left:auto;font-size:.7rem;padding:3px 9px;background:rgba(123,90,249,0.15);border-radius:100px;color:#c4b2ff;white-space:nowrap;">Amplitude ✓</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(0,200,150,0.2);border-radius:12px;">
+          <span style="font-size:20px;">💸</span>
+          <div>
+            <p style="font-size:.8rem;font-weight:700;color:var(--amp-green);">App — Martes 8:04 pm</p>
+            <p style="font-size:.75rem;color:var(--gray-300);">Primer depósito → primera transferencia → activo en D7</p>
+          </div>
+          <span style="margin-left:auto;font-size:.7rem;padding:3px 9px;background:rgba(0,200,150,0.15);border-radius:100px;color:var(--amp-green);white-space:nowrap;">Amplitude ✓</span>
+        </div>
+        <div style="margin-top:2px;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(27,109,255,0.18);border-radius:12px;">
+          <p style="font-size:.78rem;color:#7baeff;font-weight:700;">✅ Amplitude conecta los tres momentos en un solo funnel.</p>
+          <p style="font-size:.75rem;color:var(--gray-300);margin-top:4px;">Sabes qué landing convirtió, en qué paso del registro hubo fricción y cuántos usuarios activaron en los primeros 7 días.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 4 — CASOS DE USO BANCARIOS REALES
+══════════════════════════════════ -->
+<section class="slide bg-grid" id="s3">
+  <div class="glow" style="width:460px;height:460px;background:rgba(27,109,255,0.04);top:-100px;right:-80px;"></div>
+  <div class="content">
+    <div class="tag">🏦 Casos de Uso — Banca Digital</div>
+    <h2>Lo que ahora puedes responder <span class="gt">en minutos</span></h2>
+    <div class="grid g3" style="margin-top:20px;">
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bb">Adquisición</div>
+        <span class="card-icon">🎯</span>
+        <h3>¿Dónde pierdo clientes en el onboarding?</h3>
+        <p>Funnel completo en la app: registro → validación de identidad → KYC → aprobación → primer depósito. Identifica el paso exacto de abandono con Session Replay incluido.</p>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bg2">Activación</div>
+        <span class="card-icon">⚡</span>
+        <h3>¿Quiénes abren cuenta pero nunca transaccionan?</h3>
+        <p>Cohorte de usuarios que completaron onboarding pero no hicieron una transacción en 7 días. Exporta a Braze para campaña de activación automática.</p>
+      </div>
+      <div class="card" style="border-color:rgba(245,166,35,0.25);">
+        <div class="badge bg3">Retención</div>
+        <span class="card-icon">🔄</span>
+        <h3>¿Cuándo están en riesgo de churn?</h3>
+        <p>Detecta clientes que redujeron transacciones un 50% vs su histórico. Activa retención proactiva antes de que cierren la cuenta.</p>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bp">Cross-selling</div>
+        <span class="card-icon">💳</span>
+        <h3>¿A quiénes ofrecerles una tarjeta de crédito?</h3>
+        <p>Cohorte: usuarios con 3+ transferencias/mes, saldo promedio > RD$15,000, que nunca han visto la sección de tarjetas. Audiencia perfecta para oferta.</p>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge br">Fricción</div>
+        <span class="card-icon">🚨</span>
+        <h3>¿Por qué el 34% abandona la transferencia?</h3>
+        <p>Con Session Replay ves exactamente en qué campo hay confusión. En 20 minutos tienes el insight — no en 3 semanas con un reporte del equipo de data.</p>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bg2">Experimento</div>
+        <span class="card-icon">🧪</span>
+        <h3>¿El nuevo flujo de login aumenta retención?</h3>
+        <p>A/B test con rigor estadístico. Sin adivinar: la variant con biometría mejoró D30 en +18% — con p-value y confianza del 97%. Rollout al 100%.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 5 — REGULACIÓN + PRIVACIDAD
+══════════════════════════════════ -->
+<section class="slide bg-dots" id="s4">
+  <div class="glow" style="width:460px;height:460px;background:rgba(27,109,255,0.04);bottom:-80px;right:-60px;"></div>
+  <div class="content split">
+    <div>
+      <div class="tag">🔒 Cumplimiento &amp; Privacidad</div>
+      <h2>Construido para la <span class="gt-green">industria regulada</span></h2>
+      <p class="subtitle" style="font-size:.9rem;">"¿Podemos usar una herramienta de analytics en un banco?" — Sí. Amplitude fue diseñado con regulaciones financieras y de privacidad en mente.</p>
+      <div class="hr"></div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:center;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(0,200,150,0.18);border-radius:12px;">
+          <span style="font-size:22px;">🔐</span>
+          <div><p style="font-size:.85rem;font-weight:700;color:var(--amp-green);">SOC 2 Type II + ISO 27001</p><p style="font-size:.75rem;color:var(--gray-300);">Certificaciones de seguridad enterprise auditadas anualmente</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(0,200,150,0.18);border-radius:12px;">
+          <span style="font-size:22px;">🌎</span>
+          <div><p style="font-size:.85rem;font-weight:700;color:var(--amp-green);">GDPR + CCPA compliant</p><p style="font-size:.75rem;color:var(--gray-300);">Procesamiento de datos conforme con regulaciones globales de privacidad</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(0,200,150,0.18);border-radius:12px;">
+          <span style="font-size:22px;">🎭</span>
+          <div><p style="font-size:.85rem;font-weight:700;color:var(--amp-green);">PII Masking automático</p><p style="font-size:.75rem;color:var(--gray-300);">Nombres, cuentas, emails y datos sensibles se enmascaran en origen antes de ser almacenados</p></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;padding:12px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(0,200,150,0.18);border-radius:12px;">
+          <span style="font-size:22px;">🗂</span>
+          <div><p style="font-size:.85rem;font-weight:700;color:var(--amp-green);">Data residency configurable</p><p style="font-size:.75rem;color:var(--gray-300);">Almacena datos en la región que requiera tu regulador (US, EU, próximamente LATAM)</p></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:14px;">Flujo de datos bancarios en Amplitude</p>
+      <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="padding:12px;background:rgba(27,109,255,0.05);border-radius:10px;border:1px solid rgba(27,109,255,0.2);">
+          <p style="font-size:.78rem;font-weight:700;color:#7baeff;">① Evento generado en el dispositivo</p>
+          <code style="font-size:.72rem;color:var(--gray-300);font-family:monospace;">{ event: "transfer_started", amount: [MASKED], userId: "usr_hash_abc" }</code>
+        </div>
+        <div style="text-align:center;font-size:.7rem;color:var(--gray-300);">↓ SDK aplica masking local</div>
+        <div style="padding:12px;background:rgba(27,109,255,0.04);border-radius:10px;border:1px solid rgba(0,200,150,0.2);">
+          <p style="font-size:.78rem;font-weight:700;color:var(--amp-green);">② Transmitido con HTTPS/TLS 1.3</p>
+          <p style="font-size:.72rem;color:var(--gray-300);">Encriptado end-to-end. Nunca en texto plano.</p>
+        </div>
+        <div style="text-align:center;font-size:.7rem;color:var(--gray-300);">↓ Almacenamiento en región configurada</div>
+        <div style="padding:12px;background:rgba(123,90,249,0.1);border-radius:10px;border:1px solid rgba(123,90,249,0.2);">
+          <p style="font-size:.78rem;font-weight:700;color:#c4b2ff;">③ Tu equipo accede a insights, no a datos raw</p>
+          <p style="font-size:.72rem;color:var(--gray-300);">Funnels, cohortes, retención — sin ver datos personales del cliente.</p>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:13px 16px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.22);border-radius:12px;">
+        <p style="font-size:.8rem;color:var(--amp-gold);font-weight:600;">🏦 Clientes en banca y finanzas: JPMorgan, Nubank, Mercado Pago, N26, Robinhood, Chime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 6 — COMPATIBILIDAD
+══════════════════════════════════ -->
+<section class="slide bg-grid" id="s5">
+  <div class="glow" style="width:460px;height:460px;background:rgba(27,109,255,0.04);top:-100px;left:-60px;"></div>
+  <div class="content">
+    <div class="tag">🔌 Compatibilidad</div>
+    <h2>Amplitude se integra con <span class="gt-gold">todo tu stack actual</span></h2>
+    <p class="subtitle" style="font-size:.88rem;margin-bottom:4px;">No es un reemplazo disruptivo. Se conecta con las herramientas que ya tienes — y las potencia.</p>
+    <div class="grid g3" style="margin-top:16px;gap:12px;">
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bb">Data In</div>
+        <span class="card-icon">⚙️</span>
+        <h3>Fuentes de datos</h3>
+        <p>Conecta con Segment, mParticle, Tealium o directamente vía SDK/API REST. Ingesta eventos desde cualquier canal sin rehacer tu infraestructura.</p>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill pb">Segment</span><span class="pill pb">mParticle</span><span class="pill pb">API REST</span>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bp">Activación</div>
+        <span class="card-icon">📣</span>
+        <h3>CRM y Marketing</h3>
+        <p>Exporta cohorts directamente a Braze, Salesforce, Iterable o HubSpot. Las audiencias que defines en Amplitude se sincronizan en tiempo real.</p>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill pp">Braze</span><span class="pill pp">Salesforce</span><span class="pill pp">HubSpot</span>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(255,255,255,0.08);">
+        <div class="badge bg2">Data Out</div>
+        <span class="card-icon">🗄️</span>
+        <h3>Data Warehouse</h3>
+        <p>Sincroniza eventos crudos a Snowflake, BigQuery o Redshift. Tu equipo de data science trabaja sobre los mismos datos en sus herramientas habituales.</p>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">
+          <span class="pill pg">Snowflake</span><span class="pill pg">BigQuery</span><span class="pill pg">Redshift</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div style="padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">
+        <p style="font-size:.78rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">📱 SDKs nativos</p>
+        <p style="font-size:.75rem;color:var(--gray-300);line-height:1.55;">iOS, Android, React Native, Flutter, Web (JS). Sin wrappers de terceros — rendimiento nativo garantizado.</p>
+      </div>
+      <div style="padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">
+        <p style="font-size:.78rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">🔄 Complementa tus herramientas actuales</p>
+        <p style="font-size:.75rem;color:var(--gray-300);line-height:1.55;">Amplitude trabaja junto a las herramientas que ya usas. Cada plataforma aporta lo que hace mejor — sin conflictos ni disrupciones.</p>
+      </div>
+      <div style="padding:14px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">
+        <p style="font-size:.78rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">🏗️ Sin lock-in</p>
+        <p style="font-size:.75rem;color:var(--gray-300);line-height:1.55;">Los datos siempre son tuyos. Exportación completa disponible en cualquier momento a tu propio warehouse.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════
+  SLIDE 7 — BENEFICIOS A LARGO PLAZO
+══════════════════════════════════ -->
+<section class="slide bg-dots" id="s6">
+  <div class="glow" style="width:580px;height:580px;background:rgba(27,109,255,0.04);top:-160px;right:-80px;"></div>
+  <div class="glow" style="width:380px;height:380px;background:rgba(27,109,255,0.04);bottom:-100px;left:-60px;"></div>
+  <div class="content">
+    <div class="tag">📈 Visión de Largo Plazo</div>
+    <h2>Amplitude no es una herramienta.<br><span class="gt">Es la columna vertebral de tu estrategia de datos.</span></h2>
+    <div class="grid g21" style="margin-top:20px;gap:14px;">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;">
+          <span style="font-size:26px;flex-shrink:0;">🧠</span>
+          <div>
+            <p style="font-size:.88rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">Cultura data-driven en todo el banco</p>
+            <p style="font-size:.78rem;color:var(--gray-300);line-height:1.6;">Producto, Marketing, Riesgo y Operaciones comparten el mismo lenguaje de datos. Sin silos. Decisiones basadas en evidencia, no en intuición.</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;">
+          <span style="font-size:26px;flex-shrink:0;">🔮</span>
+          <div>
+            <p style="font-size:.88rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">Modelos predictivos sobre datos de comportamiento</p>
+            <p style="font-size:.78rem;color:var(--gray-300);line-height:1.6;">Con 12+ meses de historial, tu equipo de data science puede predecir churn, propensión a productos y riesgo crediticio a partir del comportamiento digital real del cliente.</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;">
+          <span style="font-size:26px;flex-shrink:0;">🚀</span>
+          <div>
+            <p style="font-size:.88rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">Velocidad de iteración del producto</p>
+            <p style="font-size:.78rem;color:var(--gray-300);line-height:1.6;">Cada release se valida con A/B testing. El banco que experimenta más, aprende más rápido. Diferencial competitivo sostenible frente a bancos tradicionales.</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;">
+          <span style="font-size:26px;flex-shrink:0;">🌐</span>
+          <div>
+            <p style="font-size:.88rem;font-weight:700;color:var(--gray-100);margin-bottom:5px;">Escalabilidad hacia nuevos canales y productos</p>
+            <p style="font-size:.78rem;color:var(--gray-300);line-height:1.6;">Cuando lances billetera digital, seguro embedded o crédito automático, el stack de analytics ya está listo. No hay que instrumentar desde cero.</p>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <p style="font-size:.72rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:1px;font-weight:700;">Madurez de datos en el tiempo</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="padding:13px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(27,109,255,0.2);border-radius:12px;">
+            <p style="font-size:.75rem;font-weight:800;color:#7baeff;text-transform:uppercase;letter-spacing:.8px;">Año 1 — Visibilidad</p>
+            <p style="font-size:.75rem;color:var(--gray-300);margin-top:4px;line-height:1.5;">Funnel cross-canal completo · Dashboards por área · Session Replay activo</p>
+          </div>
+          <div style="padding:13px 16px;background:rgba(27,109,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+            <p style="font-size:.75rem;font-weight:800;color:var(--gray-100);text-transform:uppercase;letter-spacing:.8px;">Año 2 — Optimización</p>
+            <p style="font-size:.75rem;color:var(--gray-300);margin-top:4px;line-height:1.5;">A/B testing sistemático · Cohorts automatizados al CRM · Alertas de churn en producción</p>
+          </div>
+          <div style="padding:13px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;">
+            <p style="font-size:.75rem;font-weight:800;color:var(--gray-300);text-transform:uppercase;letter-spacing:.8px;">Año 3+ — Predicción</p>
+            <p style="font-size:.75rem;color:var(--gray-300);margin-top:4px;line-height:1.5;">Modelos ML sobre historial de comportamiento · Personalización en tiempo real · Ventaja competitiva estructural</p>
+          </div>
+        </div>
+        <div style="margin-top:4px;padding:14px 16px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.22);border-radius:12px;">
+          <p style="font-size:.8rem;color:var(--amp-gold);font-weight:700;margin-bottom:5px;">💡 El dato compuesto</p>
+          <p style="font-size:.75rem;color:var(--gray-300);line-height:1.55;">Cada evento capturado hoy es entrenamiento para los modelos de mañana. El banco que empieza antes tiene un activo de datos que la competencia no puede replicar.</p>
+        </div>
+        <div style="padding:14px 16px;background:rgba(27,109,255,0.04);border:1px solid rgba(27,109,255,0.2);border-radius:12px;text-align:center;">
+          <div style="font-size:2rem;font-weight:900;background:linear-gradient(135deg,#00c896,#1b6dff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-1.5px;">+26%</div>
+          <div style="font-size:.7rem;color:var(--gray-300);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-top:2px;">Revenue promedio en servicios financieros</div>
+          <div style="font-size:.72rem;color:var(--gray-100);margin-top:5px;">a 12 meses de adoptar Amplitude como plataforma central de producto</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<nav class="nav">
+  <button class="nb" onclick="nav(-1)">←</button>
+  <div class="dots" id="dots"></div>
+  <div class="sc" id="sc">1 / 7</div>
+  <button class="nb" onclick="nav(1)">→</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  const scEl   = document.getElementById('sc');
+  let cur = 0;
+
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i===0?' active':'');
+    d.onclick = () => go(i);
+    dotsEl.appendChild(d);
+  });
+
+  function go(n) {
+    slides[cur].classList.remove('active');
+    slides[cur].classList.add('exit');
+    const old = cur;
+    setTimeout(() => slides[old].classList.remove('exit'), 500);
+    cur = Math.max(0, Math.min(slides.length-1, n));
+    slides[cur].classList.add('active');
+    document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===cur));
+    scEl.textContent = `${cur+1} / ${slides.length}`;
+  }
+
+  function nav(d) { go(cur+d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' ') nav(1);
+    if (e.key==='ArrowLeft'||e.key==='ArrowUp') nav(-1);
+  });
+</script>
+</body>
+</html>
